@@ -35,7 +35,7 @@ def load_env():
 @catch_exceptions
 def create_snapshot(project,disk,zone):
     logger.info('Creating Snapshot.')
-    body = {'name': 'autosnap-' + str(int(datetime.now().timestamp()))}
+    body = {'name': disk + '-' + str(int(datetime.now().timestamp()))}
     logger.info(compute.disks().createSnapshot(project=project, disk=disk, zone=zone, body=body).execute())
 
 
