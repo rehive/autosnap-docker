@@ -1,0 +1,11 @@
+webapp:
+  build: .
+  user: webapp
+  env_file: .env
+  environment:
+    - PYTHONUNBUFFERED=0
+  command: bash -c "python app.py"
+  log_opt:
+    max-size: "500k"
+    max-file: "2"
+  restart: always
