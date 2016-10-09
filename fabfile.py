@@ -18,7 +18,7 @@ def fabric_setup():
 def e(file=''):
     fabric_setup()
     env.env_file = file + '.env'
-    dotenv_path = os.path.join(os.path.dirname(__file__), file + '.env')
+    dotenv_path = os.path.join(os.path.dirname(__file__), '.' + file + '.env')
 
     # load env variables
     if file:
@@ -61,6 +61,6 @@ def deploy():
                   exclude=(
                       '.git', '.gitignore', '__pycache__', '*.pyc', '.DS_Store', 'environment.yml',
                       'fabfile.py', 'Makefile', '.idea', 'bower_components', 'node_modules', 'backups',
-                      'server.env', '.env.example', 'requirements.txt', 'README.md', 'var', '.idea',
+                      '.env.example', 'README.md', 'var', '.idea',
                   ),
                   delete=True)
