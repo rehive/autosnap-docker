@@ -6,6 +6,7 @@ import datetime
 import time
 import schedule
 import logging
+import iso8601
 
 from oauth2client.client import GoogleCredentials
 from googleapiclient.discovery import build
@@ -44,21 +45,19 @@ def create_snapshot(project, disk, zone):
 def delete_old_snapshots(project, disk):
     logger.info('Deleting Old Snapshots.')
     
-    # 7 days ago
-    delete_before_date = datetime.datetime.now() - datetime.timedelta(days=7)
-
     # Get a list of all snapshots
     snapshots = compute.snapshots().list(project=project).execute()
-    
-    for snapshot in snapshots.items:
-        snapshot_date = datetime.datetime.strptime(snapshot.creationTimestamp, '%Y-%m-%dT%H:%M:%S.%f')
+
+    for snapshot in snapshots["items"]:
+        snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
+        delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
 
         # Check that a snapshot is for this disk, and that it was created
         # more than 7 days ago.
-        if snapshot.name.startswith(disk) and \
+        if snapshot["name"].startswith(disk) and \
             snapshot_date < delete_before_date:
-            logger.info("Deleting snapshot: {}".format(snapshot.name))
-            logger.info(compute.snapshots().delete(snapshot=snapshot.name).execute())
+            logger.info("Deleting snapshot: {}".format(snapshot["name"]))
+            logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
 
 
 if __name__ == '__main__':
