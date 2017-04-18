@@ -33,11 +33,20 @@ def load_env():
 
 
 @catch_exceptions
-def create_snapshot(project,disk,zone):
+def create_snapshot(project, disk, zone):
     logger.info('Creating Snapshot.')
     body = {'name': disk + '-' + str(int(datetime.now().timestamp()))}
     logger.info(compute.disks().createSnapshot(project=project, disk=disk, zone=zone, body=body).execute())
 
+    
+@catch_exceptions
+def delete_old_snapshots(project):
+    logger.info('Deleting Old Snapshots.')
+    # creationTimestamp
+    snapshots = compute.snapshots().list(project=project).execute()
+    
+    for snapshot in snapshots.items:
+        logger.info(compute.snapshots().delete(snapshot=snapshot.name).execute())
 
 if __name__ == '__main__':
     print('Loading Google Credentials.')
@@ -54,10 +63,15 @@ if __name__ == '__main__':
 
     # Run first snapshot:
     create_snapshot(project, disk, zone)
+    
+    # Run first snapshot:
+    delete_old_snapshots(project)
 
     # Create Schedule:
     schedule.every(interval).minutes.do(create_snapshot, project, disk, zone)
-    # TODO: Delete old snapshots
+    
+    # Delete old snapshots
+    schedule.every(interval).minutes.do(delete_old_snapshots, project)
 
     while True:
         schedule.run_pending()
