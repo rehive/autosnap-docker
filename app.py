@@ -2,10 +2,11 @@ import os
 import sys
 from os.path import join, dirname
 from dotenv import load_dotenv
-from datetime import datetime
+import datetime 
 import time
 import schedule
 import logging
+import iso8601
 
 from oauth2client.client import GoogleCredentials
 from googleapiclient.discovery import build
@@ -33,14 +34,35 @@ def load_env():
 
 
 @catch_exceptions
-def create_snapshot(project,disk,zone):
+def create_snapshot(project, disk, zone):
     logger.info('Creating Snapshot.')
-    body = {'name': disk + '-' + str(int(datetime.now().timestamp()))}
+
+    body = {'name': disk + '-' + str(int(datetime.datetime.now().timestamp()))}
     logger.info(compute.disks().createSnapshot(project=project, disk=disk, zone=zone, body=body).execute())
+
+    
+@catch_exceptions
+def delete_old_snapshots(project, disk):
+    logger.info('Deleting Old Snapshots.')
+    
+    # Get a list of all snapshots
+    snapshots = compute.snapshots().list(project=project).execute()
+
+    for snapshot in snapshots["items"]:
+        snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
+        delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
+
+        # Check that a snapshot is for this disk, and that it was created
+        # more than 7 days ago.
+        if snapshot["name"].startswith(disk) and \
+            snapshot_date < delete_before_date:
+            logger.info("Deleting snapshot: {}".format(snapshot["name"]))
+            logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
 
 
 if __name__ == '__main__':
-    print('Loading Google Credentials.')
+    logger.info('Loading Google Credentials.')
+
     credentials = GoogleCredentials.get_application_default()
     compute = build('compute', 'v1', credentials=credentials)
 
@@ -54,10 +76,15 @@ if __name__ == '__main__':
 
     # Run first snapshot:
     create_snapshot(project, disk, zone)
+    
+    # Run first snapshot:
+    delete_old_snapshots(project, disk)
 
     # Create Schedule:
     schedule.every(interval).minutes.do(create_snapshot, project, disk, zone)
-    # TODO: Delete old snapshots
+    
+    # Delete old snapshots
+    schedule.every(interval).minutes.do(delete_old_snapshots, project, disk)
 
     while True:
         schedule.run_pending()
