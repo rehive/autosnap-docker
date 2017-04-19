@@ -17,14 +17,14 @@ def fabric_setup():
 
 def e(file=''):
     fabric_setup()
-    env.env_file = file + '.env'
-    dotenv_path = os.path.join(os.path.dirname(__file__), '.' + file + '.env')
-
-    # load env variables
+    
     if file:
-        load_dotenv(dotenv_path)
-    else:
-        load_dotenv(dotenv_path)
+        env.env_file = '.' + file + '.env'
+    else: 
+        env.env_file = '.env'
+
+    dotenv_path = os.path.join(os.path.dirname(__file__), env.env_file)
+    load_dotenv(dotenv_path)
 
     env.project_name = os.environ.get('PROJECT_NAME', '')
     env.project_dir = posixpath.join('/srv/apps/', env.project_name)
