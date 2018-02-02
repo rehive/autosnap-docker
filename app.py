@@ -2,7 +2,7 @@ import os
 import sys
 from os.path import join, dirname
 from dotenv import load_dotenv
-import datetime 
+import datetime
 import time
 import schedule
 import logging
@@ -34,17 +34,17 @@ def load_env():
 
 
 @catch_exceptions
-def create_snapshot(project, disk, zone):
+def create_snapshot(project, disk, snapshot_name):
     logger.info('Creating Snapshot.')
 
-    body = {'name': disk + '-' + str(int(datetime.datetime.now().timestamp()))}
+    body = {'name': snapshot_name + '-' + str(int(datetime.datetime.now().timestamp()))}
     logger.info(compute.disks().createSnapshot(project=project, disk=disk, zone=zone, body=body).execute())
 
-    
+
 @catch_exceptions
-def delete_old_snapshots(project, disk):
+def delete_old_snapshots(project, snapshot_name):
     logger.info('Deleting Old Snapshots.')
-    
+
     # Get a list of all snapshots
     snapshots = compute.snapshots().list(project=project).execute()
 
@@ -54,7 +54,7 @@ def delete_old_snapshots(project, disk):
 
         # Check that a snapshot is for this disk, and that it was created
         # more than 7 days ago.
-        if snapshot["name"].startswith(disk) and \
+        if snapshot["name"].startswith(snapshot_name) and \
             snapshot_date < delete_before_date:
             logger.info("Deleting snapshot: {}".format(snapshot["name"]))
             logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
@@ -66,25 +66,26 @@ if __name__ == '__main__':
     credentials = GoogleCredentials.get_application_default()
     compute = build('compute', 'v1', credentials=credentials)
 
-    if not os.environ.get('PROJECT') and os.environ.get('DISK') and os.environ.get('MINUTES'):
+    if not os.environ.get('PROJECT') and os.environ.get('DISK') and os.environ.get('INTERVAL_MINUTES'):
         load_env()  # not needed if loaded via docker
 
     project = os.environ.get('PROJECT')
     disk = os.environ.get('DISK')
     zone = os.environ.get('ZONE')
+    snapshot_name = os.environ.get('SNAPSHOT_NAME')
     interval = int(os.environ.get('INTERVAL_MINUTES'))
 
     # Run first snapshot:
-    create_snapshot(project, disk, zone)
-    
+    create_snapshot(project, disk, zone, snapshot_name)
+
     # Run first snapshot:
-    delete_old_snapshots(project, disk)
+    delete_old_snapshots(project, snapshot_name)
 
     # Create Schedule:
-    schedule.every(interval).minutes.do(create_snapshot, project, disk, zone)
-    
+    schedule.every(interval).minutes.do(create_snapshot, project, disk, zone, snapshot_name)
+
     # Delete old snapshots
-    schedule.every(interval).minutes.do(delete_old_snapshots, project, disk)
+    schedule.every(interval).minutes.do(delete_old_snapshots, project, snapshot_name)
 
     while True:
         schedule.run_pending()

@@ -17,10 +17,10 @@ def fabric_setup():
 
 def e(file=''):
     fabric_setup()
-    
+
     if file:
         env.env_file = '.' + file + '.env'
-    else: 
+    else:
         env.env_file = '.env'
 
     dotenv_path = os.path.join(os.path.dirname(__file__), env.env_file)
@@ -29,7 +29,6 @@ def e(file=''):
     env.project_name = os.environ.get('PROJECT_NAME', '')
     env.project_dir = posixpath.join('/srv/apps/', env.project_name)
     env.host_string = os.environ.get('HOST_NAME', '')
-    env.virtual_host = os.environ.get('VIRTUAL_HOST', '')
 
 
 def execute(cmd, path=''):
