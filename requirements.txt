@@ -2,3 +2,4 @@ schedule
 google-api-python-client
 python-dotenv
 iso8601
+oauth2client

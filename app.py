@@ -34,7 +34,7 @@ def load_env():
 
 
 @catch_exceptions
-def create_snapshot(project, disk, snapshot_name):
+def create_snapshot(project, disk, zone, snapshot_name):
     logger.info('Creating Snapshot.')
 
     body = {'name': snapshot_name + '-' + str(int(datetime.datetime.now().timestamp()))}
@@ -48,17 +48,25 @@ def delete_old_snapshots(project, snapshot_name):
     # Get a list of all snapshots
     snapshots = compute.snapshots().list(project=project).execute()
 
-    for snapshot in snapshots["items"]:
-        snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
-        delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
+    while ( True ) :
+        next_page_token = snapshots.get("nextPageToken", None)
+        for snapshot in snapshots["items"]:
+            snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
+            delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
 
-        # Check that a snapshot is for this disk, and that it was created
-        # more than 7 days ago.
-        if snapshot["name"].startswith(snapshot_name) and \
-            snapshot_date < delete_before_date:
-            logger.info("Deleting snapshot: {}".format(snapshot["name"]))
-            logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
+            # Check that a snapshot is for this disk, and that it was created
+            # more than 7 days ago.
+            if snapshot["name"].startswith(snapshot_name) and \
+                snapshot_date < delete_before_date:
+                logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
 
+        if next_page_token == None:
+            break
+
+        snapshots = compute.snapshots().list(
+            project=project,
+            pageToken=next_page_token).execute()
+        next_page_token = snapshots.get("nextPageToken", None)
 
 if __name__ == '__main__':
     logger.info('Loading Google Credentials.')
@@ -85,11 +93,9 @@ if __name__ == '__main__':
     schedule.every(interval).minutes.do(create_snapshot, project, disk, zone, snapshot_name)
 
     # Delete old snapshots
-    schedule.every(interval).minutes.do(delete_old_snapshots, project, snapshot_name)
+    schedule.every(interval).seconds.do(delete_old_snapshots, project, snapshot_name)
 
     while True:
         schedule.run_pending()
         time.sleep(1)
-
-
 
