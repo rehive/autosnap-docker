@@ -58,15 +58,15 @@ def delete_old_snapshots(project, snapshot_name):
             # more than 7 days ago.
             if snapshot["name"].startswith(snapshot_name) and \
                 snapshot_date < delete_before_date:
-                logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
+                logger.info(compute.snapshots().delete(
+                    project=project, snapshot=snapshot["name"]).execute())
 
         if next_page_token == None:
             break
 
         snapshots = compute.snapshots().list(
-            project=project,
-            pageToken=next_page_token).execute()
-        next_page_token = snapshots.get("nextPageToken", None)
+            project=project, pageToken=next_page_token).execute()
+
 
 if __name__ == '__main__':
     logger.info('Loading Google Credentials.')
@@ -93,9 +93,8 @@ if __name__ == '__main__':
     schedule.every(interval).minutes.do(create_snapshot, project, disk, zone, snapshot_name)
 
     # Delete old snapshots
-    schedule.every(interval).seconds.do(delete_old_snapshots, project, snapshot_name)
+    schedule.every(interval).minutes.do(delete_old_snapshots, project, snapshot_name)
 
     while True:
         schedule.run_pending()
         time.sleep(1)
-
