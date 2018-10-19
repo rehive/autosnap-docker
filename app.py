@@ -8,7 +8,6 @@ import schedule
 import logging
 import iso8601
 
-from oauth2client.client import GoogleCredentials
 from googleapiclient.discovery import build
 
 import functools
@@ -71,8 +70,7 @@ def delete_old_snapshots(project, snapshot_name):
 if __name__ == '__main__':
     logger.info('Loading Google Credentials.')
 
-    credentials = GoogleCredentials.get_application_default()
-    compute = build('compute', 'v1', credentials=credentials)
+    compute = build('compute', 'v1')
 
     if not os.environ.get('PROJECT') and os.environ.get('DISK') and os.environ.get('INTERVAL_MINUTES'):
         load_env()  # not needed if loaded via docker
