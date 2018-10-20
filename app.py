@@ -8,7 +8,6 @@ import schedule
 import logging
 import iso8601
 
-from oauth2client.client import GoogleCredentials
 from googleapiclient.discovery import build
 
 import functools
@@ -34,7 +33,7 @@ def load_env():
 
 
 @catch_exceptions
-def create_snapshot(project, disk, snapshot_name):
+def create_snapshot(project, disk, zone, snapshot_name):
     logger.info('Creating Snapshot.')
 
     body = {'name': snapshot_name + '-' + str(int(datetime.datetime.now().timestamp()))}
@@ -48,23 +47,30 @@ def delete_old_snapshots(project, snapshot_name):
     # Get a list of all snapshots
     snapshots = compute.snapshots().list(project=project).execute()
 
-    for snapshot in snapshots["items"]:
-        snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
-        delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
+    while ( True ) :
+        next_page_token = snapshots.get("nextPageToken", None)
+        for snapshot in snapshots["items"]:
+            snapshot_date = iso8601.parse_date(snapshot["creationTimestamp"])
+            delete_before_date = datetime.datetime.now(snapshot_date.tzinfo) - datetime.timedelta(days=7)
 
-        # Check that a snapshot is for this disk, and that it was created
-        # more than 7 days ago.
-        if snapshot["name"].startswith(snapshot_name) and \
-            snapshot_date < delete_before_date:
-            logger.info("Deleting snapshot: {}".format(snapshot["name"]))
-            logger.info(compute.snapshots().delete(project=project, snapshot=snapshot["name"]).execute())
+            # Check that a snapshot is for this disk, and that it was created
+            # more than 7 days ago.
+            if snapshot["name"].startswith(snapshot_name) and \
+                snapshot_date < delete_before_date:
+                logger.info(compute.snapshots().delete(
+                    project=project, snapshot=snapshot["name"]).execute())
+
+        if next_page_token == None:
+            break
+
+        snapshots = compute.snapshots().list(
+            project=project, pageToken=next_page_token).execute()
 
 
 if __name__ == '__main__':
     logger.info('Loading Google Credentials.')
 
-    credentials = GoogleCredentials.get_application_default()
-    compute = build('compute', 'v1', credentials=credentials)
+    compute = build('compute', 'v1')
 
     if not os.environ.get('PROJECT') and os.environ.get('DISK') and os.environ.get('INTERVAL_MINUTES'):
         load_env()  # not needed if loaded via docker
@@ -90,6 +96,3 @@ if __name__ == '__main__':
     while True:
         schedule.run_pending()
         time.sleep(1)
-
-
-
